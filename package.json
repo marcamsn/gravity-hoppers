@@ -1,13 +1,13 @@
 {
-  "name": "gravity-hoopers",
+  "name": "gravity-hoppers",
   "version": "1.0.0",
   "private": true,
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
-    "dev:client": "npm run dev --workspace=@gravity-hoopers/client",
-    "dev:server": "npm run dev --workspace=@gravity-hoopers/server",
+    "dev:client": "npm run dev --workspace=@gravity-hoppers/client",
+    "dev:server": "npm run dev --workspace=@gravity-hoppers/server",
     "build": "npm run build --workspaces"
   }
 }

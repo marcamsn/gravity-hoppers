@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Gravity Hoopers is a multiplayer 3D space game where players navigate between planets using jetpack thrust. The game features a multi-planet system with dynamic gravity that pulls players toward nearby celestial bodies, with player orientation automatically adjusting to align with the nearest planet's surface normal.
+Gravity Hoppers is a multiplayer 3D space game where players navigate between planets using jetpack thrust. The game features a multi-planet system with dynamic gravity that pulls players toward nearby celestial bodies, with player orientation automatically adjusting to align with the nearest planet's surface normal.
 
 ## Development Commands
 

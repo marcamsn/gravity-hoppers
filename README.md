@@ -1,6 +1,6 @@
-# Gravity Hoopers
+# Gravity Hoppers
 
-![Gravity Hoopers Banner](banner.png)
+![Gravity Hoppers Banner](banner.png)
 
 A multiplayer 3D space exploration game where players navigate between colorful planets using jetpack thrust, experiencing dynamic gravity from nearby celestial bodies.
 
