@@ -9,42 +9,62 @@ interface PlanetConfig {
   mass: number;
 }
 
+// Shared configuration for planet generation
+const PLANET_CONFIG = {
+  seed: 12345,
+  // Small planets (moons) - close range
+  small: { count: 12, minDist: 20, maxDist: 80, minRadius: 2, maxRadius: 5 },
+  // Medium planets - mid range
+  medium: { count: 8, minDist: 80, maxDist: 200, minRadius: 6, maxRadius: 15 },
+  // Large planets - far range
+  large: { count: 5, minDist: 200, maxDist: 400, minRadius: 18, maxRadius: 35 },
+  // Giant planets - very far
+  giant: { count: 3, minDist: 400, maxDist: 700, minRadius: 40, maxRadius: 60 },
+};
+
+// Seeded random generator
+const createRandom = (seed: number) => {
+  let s = seed;
+  return () => {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+};
+
 export const PlanetSystem: React.FC = () => {
   const planets = useMemo(() => {
     const planetConfigs: PlanetConfig[] = [];
-    const planetCount = 7;
-    const minDistance = 30;
-    const maxDistance = 150;
-    const minRadius = 5;
-    const maxRadius = 15;
+    const random = createRandom(PLANET_CONFIG.seed);
 
-    // Seeded random for reproducibility
-    let seed = 12345;
-    const random = () => {
-      seed = (seed * 9301 + 49297) % 233280;
-      return seed / 233280;
+    const generatePlanets = (
+      config: { count: number; minDist: number; maxDist: number; minRadius: number; maxRadius: number },
+      startId: number
+    ) => {
+      for (let i = 0; i < config.count; i++) {
+        const distance = config.minDist + random() * (config.maxDist - config.minDist);
+        const theta = random() * Math.PI * 2;
+        const phi = Math.acos(2 * random() - 1);
+
+        const x = distance * Math.sin(phi) * Math.cos(theta);
+        const y = distance * Math.sin(phi) * Math.sin(theta);
+        const z = distance * Math.cos(phi);
+
+        const radius = config.minRadius + random() * (config.maxRadius - config.minRadius);
+        const mass = radius * radius;
+
+        planetConfigs.push({
+          id: `planet-${startId + i}`,
+          position: [x, y, z],
+          radius,
+          mass,
+        });
+      }
     };
 
-    for (let i = 0; i < planetCount; i++) {
-      // Random position in 3D space
-      const distance = minDistance + random() * (maxDistance - minDistance);
-      const theta = random() * Math.PI * 2;
-      const phi = Math.acos(2 * random() - 1);
-
-      const x = distance * Math.sin(phi) * Math.cos(theta);
-      const y = distance * Math.sin(phi) * Math.sin(theta);
-      const z = distance * Math.cos(phi);
-
-      const radius = minRadius + random() * (maxRadius - minRadius);
-      const mass = radius * radius; // Mass proportional to radius squared
-
-      planetConfigs.push({
-        id: `planet-${i}`,
-        position: [x, y, z],
-        radius,
-        mass,
-      });
-    }
+    generatePlanets(PLANET_CONFIG.small, 0);
+    generatePlanets(PLANET_CONFIG.medium, 100);
+    generatePlanets(PLANET_CONFIG.large, 200);
+    generatePlanets(PLANET_CONFIG.giant, 300);
 
     return planetConfigs;
   }, []);
@@ -66,36 +86,35 @@ export const PlanetSystem: React.FC = () => {
 export const usePlanetConfigs = (): Array<{ position: THREE.Vector3; radius: number; mass: number }> => {
   return useMemo(() => {
     const planetConfigs: Array<{ position: THREE.Vector3; radius: number; mass: number }> = [];
-    const planetCount = 7;
-    const minDistance = 30;
-    const maxDistance = 150;
-    const minRadius = 5;
-    const maxRadius = 15;
+    const random = createRandom(PLANET_CONFIG.seed);
 
-    let seed = 12345;
-    const random = () => {
-      seed = (seed * 9301 + 49297) % 233280;
-      return seed / 233280;
+    const generatePlanets = (
+      config: { count: number; minDist: number; maxDist: number; minRadius: number; maxRadius: number }
+    ) => {
+      for (let i = 0; i < config.count; i++) {
+        const distance = config.minDist + random() * (config.maxDist - config.minDist);
+        const theta = random() * Math.PI * 2;
+        const phi = Math.acos(2 * random() - 1);
+
+        const x = distance * Math.sin(phi) * Math.cos(theta);
+        const y = distance * Math.sin(phi) * Math.sin(theta);
+        const z = distance * Math.cos(phi);
+
+        const radius = config.minRadius + random() * (config.maxRadius - config.minRadius);
+        const mass = radius * radius;
+
+        planetConfigs.push({
+          position: new THREE.Vector3(x, y, z),
+          radius,
+          mass,
+        });
+      }
     };
 
-    for (let i = 0; i < planetCount; i++) {
-      const distance = minDistance + random() * (maxDistance - minDistance);
-      const theta = random() * Math.PI * 2;
-      const phi = Math.acos(2 * random() - 1);
-
-      const x = distance * Math.sin(phi) * Math.cos(theta);
-      const y = distance * Math.sin(phi) * Math.sin(theta);
-      const z = distance * Math.cos(phi);
-
-      const radius = minRadius + random() * (maxRadius - minRadius);
-      const mass = radius * radius;
-
-      planetConfigs.push({
-        position: new THREE.Vector3(x, y, z),
-        radius,
-        mass,
-      });
-    }
+    generatePlanets(PLANET_CONFIG.small);
+    generatePlanets(PLANET_CONFIG.medium);
+    generatePlanets(PLANET_CONFIG.large);
+    generatePlanets(PLANET_CONFIG.giant);
 
     return planetConfigs;
   }, []);

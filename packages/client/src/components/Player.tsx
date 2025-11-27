@@ -5,6 +5,8 @@ import * as THREE from 'three';
 import { useKeyboardControls } from '../hooks/useKeyboardControls';
 import { useMouseControls } from '../hooks/useMouseControls';
 import { usePlanetConfigs } from './PlanetSystem';
+import { SpeedLines } from './SpeedLines';
+import { PlayerTrail } from './PlayerTrail';
 
 const BASE_GRAVITY_FORCE = 20;
 const THRUST_FORCE_MAX = 30;
@@ -22,9 +24,11 @@ export const Player: React.FC<PlayerProps> = ({ onPositionUpdate }) => {
   const controls = useKeyboardControls();
   const mouseControls = useMouseControls();
   const planets = usePlanetConfigs();
-  
+
   const [currentThrustForward, setCurrentThrustForward] = useState(0);
   const [currentThrustReverse, setCurrentThrustReverse] = useState(0);
+  const [playerPosition] = useState(() => new THREE.Vector3());
+  const [isThrusting, setIsThrusting] = useState(false);
 
   const playerPos = new THREE.Vector3();
   const upVector = new THREE.Vector3();
@@ -128,7 +132,12 @@ export const Player: React.FC<PlayerProps> = ({ onPositionUpdate }) => {
     camera.position.lerp(cameraPos, 0.2);
     camera.up.copy(upVector);
 
-    // 6. Network Update
+    // 6. Update effects state
+    playerPosition.copy(playerPos);
+    const thrustActive = currentThrustForward > 0.1 || currentThrustReverse > 0.1;
+    setIsThrusting(thrustActive);
+
+    // 7. Network Update
     if (onPositionUpdate && rigidBodyRef.current) {
         const t = rigidBodyRef.current.translation();
         const r = rigidBodyRef.current.rotation();
@@ -137,24 +146,36 @@ export const Player: React.FC<PlayerProps> = ({ onPositionUpdate }) => {
             qx: r.x, qy: r.y, qz: r.z, qw: r.w
         });
     }
-    
+
   });
 
+  const thrustIntensity = Math.max(currentThrustForward, currentThrustReverse);
+
   return (
-    <RigidBody 
-      ref={rigidBodyRef} 
-      colliders={false} 
-      mass={1} 
-      position={[0, 12, 0]} 
-      enabledRotations={[true, true, true]} 
-      linearDamping={0.3}
-      angularDamping={0.5}
-    >
-      <CapsuleCollider args={[0.5, 0.5]} />
-      <mesh visible={false}>
-        <capsuleGeometry args={[0.5, 1, 4, 8]} />
-        <meshStandardMaterial color="orange" />
-      </mesh>
-    </RigidBody>
+    <>
+      <RigidBody
+        ref={rigidBodyRef}
+        colliders={false}
+        mass={1}
+        position={[0, 12, 0]}
+        enabledRotations={[true, true, true]}
+        linearDamping={0.3}
+        angularDamping={0.5}
+      >
+        <CapsuleCollider args={[0.5, 0.5]} />
+        <mesh visible={false}>
+          <capsuleGeometry args={[0.5, 1, 4, 8]} />
+          <meshStandardMaterial color="orange" />
+        </mesh>
+      </RigidBody>
+
+      {/* Speed lines effect attached to camera */}
+      <primitive object={camera}>
+        <SpeedLines intensity={thrustIntensity} />
+      </primitive>
+
+      {/* Particle trail in world space */}
+      <PlayerTrail playerPosition={playerPosition} isThrusting={isThrusting} />
+    </>
   );
 };

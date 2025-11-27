@@ -44,7 +44,7 @@ function App() {
           onPlayerCountChange={handlePlayerCountChange}
         />
 
-        <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+        <Stars radius={800} depth={200} count={10000} factor={6} saturation={0} fade speed={0.5} />
         <PointerLockControls />
 
         <EffectComposer>
