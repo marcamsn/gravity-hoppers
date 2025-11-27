@@ -6,7 +6,8 @@ export const useKeyboardControls = () => {
     backward: false,
     left: false,
     right: false,
-    jump: false,
+    thrustForward: false,
+    thrustReverse: false,
   });
 
   useEffect(() => {
@@ -18,7 +19,7 @@ export const useKeyboardControls = () => {
           break;
         case 'KeyS':
         case 'ArrowDown':
-          setMovement((m) => ({ ...m, backward: true }));
+          setMovement((m) => ({ ...m, backward: true, thrustReverse: true }));
           break;
         case 'KeyA':
         case 'ArrowLeft':
@@ -29,7 +30,7 @@ export const useKeyboardControls = () => {
           setMovement((m) => ({ ...m, right: true }));
           break;
         case 'Space':
-          setMovement((m) => ({ ...m, jump: true }));
+          setMovement((m) => ({ ...m, thrustForward: true }));
           break;
       }
     };
@@ -42,7 +43,7 @@ export const useKeyboardControls = () => {
           break;
         case 'KeyS':
         case 'ArrowDown':
-          setMovement((m) => ({ ...m, backward: false }));
+          setMovement((m) => ({ ...m, backward: false, thrustReverse: false }));
           break;
         case 'KeyA':
         case 'ArrowLeft':
@@ -53,7 +54,7 @@ export const useKeyboardControls = () => {
           setMovement((m) => ({ ...m, right: false }));
           break;
         case 'Space':
-          setMovement((m) => ({ ...m, jump: false }));
+          setMovement((m) => ({ ...m, thrustForward: false }));
           break;
       }
     };

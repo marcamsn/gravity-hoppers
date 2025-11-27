@@ -47,8 +47,11 @@ function App() {
       <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', pointerEvents: 'none', color: 'white' }}>
         +
       </div>
-      <div style={{ position: 'absolute', top: 20, left: 20, color: 'white' }}>
-        Click to play. WASD to move. Hold Space to jump.
+      <div style={{ position: 'absolute', top: 20, left: 20, color: 'white', fontFamily: 'monospace' }}>
+        <div>Click to play</div>
+        <div>Mouse: Look around</div>
+        <div>Space / Left Click: Forward thrust</div>
+        <div>S / Right Click: Reverse thrust</div>
       </div>
     </>
   )
