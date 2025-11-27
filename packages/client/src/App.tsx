@@ -6,11 +6,16 @@ import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing'
 import { PlanetSystem } from './components/PlanetSystem'
 import { Player } from './components/Player'
 import { NetworkManager } from './components/NetworkManager'
+import { MinimapOverlay } from './components/Minimap'
 import * as Colyseus from 'colyseus.js'
+import * as THREE from 'three'
 
 function App() {
   const roomRef = useRef<Colyseus.Room | null>(null);
   const [playerCount, setPlayerCount] = useState(0);
+  const [playerPosition, setPlayerPosition] = useState(() => new THREE.Vector3());
+  const [playerRotation, setPlayerRotation] = useState(0);
+  const [remotePlayers, setRemotePlayers] = useState<Array<{ x: number; y: number; z: number }>>([]);
 
   const handleRoomJoined = (room: Colyseus.Room) => {
     roomRef.current = room;
@@ -20,10 +25,18 @@ function App() {
     if (roomRef.current) {
         roomRef.current.send("updatePosition", data);
     }
+    // Update local position for minimap (create new Vector3 to trigger re-render)
+    setPlayerPosition(new THREE.Vector3(data.x, data.y, data.z));
+    // Update rotation for minimap direction indicator
+    setPlayerRotation(data.cameraYaw);
   };
 
   const handlePlayerCountChange = (count: number) => {
     setPlayerCount(count);
+  };
+
+  const handleRemotePlayersUpdate = (players: Array<{ x: number; y: number; z: number }>) => {
+    setRemotePlayers(players);
   };
 
   return (
@@ -42,9 +55,10 @@ function App() {
         <NetworkManager
           onRoomJoined={handleRoomJoined}
           onPlayerCountChange={handlePlayerCountChange}
+          onRemotePlayersUpdate={handleRemotePlayersUpdate}
         />
 
-        <Stars radius={800} depth={200} count={10000} factor={6} saturation={0} fade speed={0.5} />
+        <Stars radius={200} depth={500} count={5000} factor={6} saturation={0} fade speed={0.5} />
         <PointerLockControls />
 
         <EffectComposer>
@@ -65,6 +79,8 @@ function App() {
       <div style={{ position: 'absolute', top: 20, right: 20, color: 'white', fontFamily: 'monospace', background: 'rgba(0,0,0,0.5)', padding: '10px', borderRadius: '5px' }}>
         <div>Players Online: {playerCount}</div>
       </div>
+
+      <MinimapOverlay playerPosition={playerPosition} playerRotation={playerRotation} remotePlayers={remotePlayers} />
     </>
   )
 }

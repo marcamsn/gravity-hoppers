@@ -6,7 +6,6 @@ import { useKeyboardControls } from '../hooks/useKeyboardControls';
 import { useMouseControls } from '../hooks/useMouseControls';
 import { usePlanetConfigs } from './PlanetSystem';
 import { SpeedLines } from './SpeedLines';
-import { PlayerTrail } from './PlayerTrail';
 
 const BASE_GRAVITY_FORCE = 20;
 const THRUST_FORCE_MAX = 30;
@@ -15,7 +14,7 @@ const THRUST_RAMP_SPEED = 2.0;
 type PlanetConfig = { position: THREE.Vector3; radius: number; mass: number };
 
 interface PlayerProps {
-    onPositionUpdate?: (data: { x: number, y: number, z: number, qx: number, qy: number, qz: number, qw: number }) => void;
+    onPositionUpdate?: (data: { x: number, y: number, z: number, qx: number, qy: number, qz: number, qw: number, cameraYaw: number }) => void;
 }
 
 export const Player: React.FC<PlayerProps> = ({ onPositionUpdate }) => {
@@ -27,8 +26,6 @@ export const Player: React.FC<PlayerProps> = ({ onPositionUpdate }) => {
 
   const [currentThrustForward, setCurrentThrustForward] = useState(0);
   const [currentThrustReverse, setCurrentThrustReverse] = useState(0);
-  const [playerPosition] = useState(() => new THREE.Vector3());
-  const [isThrusting, setIsThrusting] = useState(false);
 
   const playerPos = new THREE.Vector3();
   const upVector = new THREE.Vector3();
@@ -132,18 +129,16 @@ export const Player: React.FC<PlayerProps> = ({ onPositionUpdate }) => {
     camera.position.lerp(cameraPos, 0.2);
     camera.up.copy(upVector);
 
-    // 6. Update effects state
-    playerPosition.copy(playerPos);
-    const thrustActive = currentThrustForward > 0.1 || currentThrustReverse > 0.1;
-    setIsThrusting(thrustActive);
-
-    // 7. Network Update
+    // 6. Network Update
     if (onPositionUpdate && rigidBodyRef.current) {
         const t = rigidBodyRef.current.translation();
         const r = rigidBodyRef.current.rotation();
+        // Get camera yaw (Y-axis rotation) for minimap direction indicator
+        const cameraYaw = Math.atan2(thrustDirection.x, thrustDirection.z);
         onPositionUpdate({
             x: t.x, y: t.y, z: t.z,
-            qx: r.x, qy: r.y, qz: r.z, qw: r.w
+            qx: r.x, qy: r.y, qz: r.z, qw: r.w,
+            cameraYaw
         });
     }
 
@@ -173,9 +168,6 @@ export const Player: React.FC<PlayerProps> = ({ onPositionUpdate }) => {
       <primitive object={camera}>
         <SpeedLines intensity={thrustIntensity} />
       </primitive>
-
-      {/* Particle trail in world space */}
-      <PlayerTrail playerPosition={playerPosition} isThrusting={isThrusting} />
     </>
   );
 };
