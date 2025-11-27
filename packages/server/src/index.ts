@@ -10,12 +10,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+import { GameRoom } from "./rooms/GameRoom";
+
 const gameServer = new Server({
   server: createServer(app),
 });
 
-// Define rooms here later
-// gameServer.define("my_room", MyRoom);
+gameServer.define("game_room", GameRoom);
 
 app.use("/colyseus", monitor());
 
