@@ -41,13 +41,13 @@ export const Player: React.FC<PlayerProps> = ({ onPositionUpdate }) => {
 
     // Calculate combined gravity from all planets
     gravityForce.set(0, 0, 0);
-    let nearestPlanet: PlanetConfig | null = null;
+    let nearestPlanet: PlanetConfig | undefined;
     let nearestDistance = Infinity;
 
-    planets.forEach((planet) => {
+    for (const planet of planets) {
       const toPlanet = planet.position.clone().sub(playerPos);
       const distance = toPlanet.length();
-      
+
       // Track nearest planet for "up" vector
       if (distance < nearestDistance) {
         nearestDistance = distance;
@@ -59,11 +59,11 @@ export const Player: React.FC<PlayerProps> = ({ onPositionUpdate }) => {
       const gravityStrength = (planet.mass * BASE_GRAVITY_FORCE) / (distance * distance);
       const gravityDir = toPlanet.normalize();
       gravityForce.add(gravityDir.multiplyScalar(gravityStrength));
-    });
+    }
 
     // Apply combined gravity
     rigidBodyRef.current.applyImpulse(
-      gravityForce.multiplyScalar(delta * rigidBodyRef.current.mass()), 
+      gravityForce.multiplyScalar(delta * rigidBodyRef.current.mass()),
       true
     );
 

@@ -1,9 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import * as Colyseus from 'colyseus.js';
 import { RemotePlayer } from './RemotePlayer';
 
-// Define the schema types locally for now, or import if we shared them properly
-// For prototype, we just need the structure
 interface PlayerState {
   x: number;
   y: number;
@@ -16,52 +14,74 @@ interface PlayerState {
 
 interface NetworkManagerProps {
   onRoomJoined: (room: Colyseus.Room) => void;
+  onPlayerCountChange?: (count: number) => void;
 }
 
-export const NetworkManager: React.FC<NetworkManagerProps> = ({ onRoomJoined }) => {
+export const NetworkManager: React.FC<NetworkManagerProps> = ({ onRoomJoined, onPlayerCountChange }) => {
   const [client] = useState(() => new Colyseus.Client('ws://localhost:2567'));
-  const [room, setRoom] = useState<Colyseus.Room | null>(null);
+  const roomRef = useRef<Colyseus.Room | null>(null);
   const [players, setPlayers] = useState<Map<string, PlayerState>>(new Map());
+  const [totalPlayers, setTotalPlayers] = useState(0);
+
+  // Store callbacks in refs to avoid re-running effect
+  const onRoomJoinedRef = useRef(onRoomJoined);
+  const onPlayerCountChangeRef = useRef(onPlayerCountChange);
+  onRoomJoinedRef.current = onRoomJoined;
+  onPlayerCountChangeRef.current = onPlayerCountChange;
+
+  // Notify parent of player count changes
+  useEffect(() => {
+    onPlayerCountChangeRef.current?.(totalPlayers);
+  }, [totalPlayers]);
 
   useEffect(() => {
     let mySessionId: string;
+    let mounted = true;
 
     const connect = async () => {
       try {
         const joinedRoom = await client.joinOrCreate<any>('game_room');
-        console.log('Joined room:', joinedRoom.name);
-        setRoom(joinedRoom);
-        onRoomJoined(joinedRoom);
+        if (!mounted) {
+          joinedRoom.leave();
+          return;
+        }
+
+        console.log('Joined room:', joinedRoom.name, 'Session:', joinedRoom.sessionId);
+        roomRef.current = joinedRoom;
+        onRoomJoinedRef.current(joinedRoom);
         mySessionId = joinedRoom.sessionId;
 
-        joinedRoom.state.players.onAdd = (player: any, sessionId: string) => {
+        // Set initial player count from existing players
+        const initialCount = joinedRoom.state.players.size;
+        console.log('Initial players in room:', initialCount);
+        setTotalPlayers(initialCount);
+
+        joinedRoom.state.players.onAdd((player: any, sessionId: string) => {
+          console.log('Player joined:', sessionId, '(self:', sessionId === mySessionId, ')');
+          setTotalPlayers(joinedRoom.state.players.size);
+
           if (sessionId === mySessionId) return; // Don't render self as remote player
-          console.log('Player joined:', sessionId);
           setPlayers(prev => new Map(prev).set(sessionId, player));
-          
+
           // Listen for changes
-          player.onChange = () => {
+          player.onChange(() => {
              setPlayers(prev => {
                 const newMap = new Map(prev);
-                // Force update to trigger re-render if needed, 
-                // but actually R3F components might read directly from the object if we pass it.
-                // However, for React state updates, we need a new map.
-                // But `player` object is mutable and updated by Colyseus.
-                // We just need to trigger a render.
-                newMap.set(sessionId, player); 
+                newMap.set(sessionId, player);
                 return newMap;
              });
-          };
-        };
+          });
+        });
 
-        joinedRoom.state.players.onRemove = (_player: any, sessionId: string) => {
+        joinedRoom.state.players.onRemove((_player: any, sessionId: string) => {
           console.log('Player left:', sessionId);
+          setTotalPlayers(joinedRoom.state.players.size);
           setPlayers(prev => {
             const newMap = new Map(prev);
             newMap.delete(sessionId);
             return newMap;
           });
-        };
+        });
 
       } catch (e) {
         console.error('Join error:', e);
@@ -71,9 +91,13 @@ export const NetworkManager: React.FC<NetworkManagerProps> = ({ onRoomJoined }) 
     connect();
 
     return () => {
-      if (room) room.leave();
+      mounted = false;
+      if (roomRef.current) {
+        roomRef.current.leave();
+        roomRef.current = null;
+      }
     };
-  }, []);
+  }, [client]);
 
   return (
     <>
