@@ -3,7 +3,7 @@ import { Canvas } from '@react-three/fiber'
 import { Stars, PointerLockControls, Environment } from '@react-three/drei'
 import { Physics } from '@react-three/rapier'
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing'
-import { Planet } from './components/Planet'
+import { PlanetSystem } from './components/PlanetSystem'
 import { Player } from './components/Player'
 import { NetworkManager } from './components/NetworkManager'
 import * as Colyseus from 'colyseus.js'
@@ -31,7 +31,7 @@ function App() {
         <Environment preset="sunset" />
         
         <Physics gravity={[0, 0, 0]}> {/* Disable default gravity */}
-          <Planet radius={10} />
+          <PlanetSystem />
           <Player onPositionUpdate={handlePlayerUpdate} />
         </Physics>
 

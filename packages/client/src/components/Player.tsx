@@ -4,10 +4,13 @@ import { RigidBody, RapierRigidBody, CapsuleCollider } from '@react-three/rapier
 import * as THREE from 'three';
 import { useKeyboardControls } from '../hooks/useKeyboardControls';
 import { useMouseControls } from '../hooks/useMouseControls';
+import { usePlanetConfigs } from './PlanetSystem';
 
-const GRAVITY_FORCE = 20;
+const BASE_GRAVITY_FORCE = 20;
 const THRUST_FORCE_MAX = 30;
-const THRUST_RAMP_SPEED = 2.0; // How fast thrust ramps up (0 to max)
+const THRUST_RAMP_SPEED = 2.0;
+
+type PlanetConfig = { position: THREE.Vector3; radius: number; mass: number };
 
 interface PlayerProps {
     onPositionUpdate?: (data: { x: number, y: number, z: number, qx: number, qy: number, qz: number, qw: number }) => void;
@@ -18,29 +21,69 @@ export const Player: React.FC<PlayerProps> = ({ onPositionUpdate }) => {
   const { camera } = useThree();
   const controls = useKeyboardControls();
   const mouseControls = useMouseControls();
+  const planets = usePlanetConfigs();
   
   const [currentThrustForward, setCurrentThrustForward] = useState(0);
   const [currentThrustReverse, setCurrentThrustReverse] = useState(0);
 
-  // Temporary vectors to avoid garbage collection
   const playerPos = new THREE.Vector3();
-  const planetCenter = new THREE.Vector3(0, 0, 0);
   const upVector = new THREE.Vector3();
   const thrustDirection = new THREE.Vector3();
+  const gravityForce = new THREE.Vector3();
+  const targetQuaternion = new THREE.Quaternion();
+  const currentQuaternion = new THREE.Quaternion();
 
   useFrame((state, delta) => {
     if (!rigidBodyRef.current) return;
 
-    // 1. Get current position
     const translation = rigidBodyRef.current.translation();
     playerPos.set(translation.x, translation.y, translation.z);
 
-    // 2. Calculate "Up" vector (normal to planet surface)
-    upVector.copy(playerPos).sub(planetCenter).normalize();
+    // Calculate combined gravity from all planets
+    gravityForce.set(0, 0, 0);
+    let nearestPlanet: PlanetConfig | null = null;
+    let nearestDistance = Infinity;
 
-    // 3. Apply Spherical Gravity
-    const gravityDirection = upVector.clone().negate();
-    rigidBodyRef.current.applyImpulse(gravityDirection.multiplyScalar(GRAVITY_FORCE * delta * rigidBodyRef.current.mass()), true);
+    planets.forEach((planet) => {
+      const toPlanet = planet.position.clone().sub(playerPos);
+      const distance = toPlanet.length();
+      
+      // Track nearest planet for "up" vector
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestPlanet = planet;
+      }
+
+      // Calculate gravity force with distance falloff
+      // F = G * m1 * m2 / r^2, simplified to: force = mass / distance^2
+      const gravityStrength = (planet.mass * BASE_GRAVITY_FORCE) / (distance * distance);
+      const gravityDir = toPlanet.normalize();
+      gravityForce.add(gravityDir.multiplyScalar(gravityStrength));
+    });
+
+    // Apply combined gravity
+    rigidBodyRef.current.applyImpulse(
+      gravityForce.multiplyScalar(delta * rigidBodyRef.current.mass()), 
+      true
+    );
+
+    // Calculate "up" vector from nearest planet and align rotation
+    if (nearestPlanet) {
+      upVector.copy(playerPos).sub(nearestPlanet.position).normalize();
+      
+      // Create a quaternion that aligns the player's up (Y-axis) with the planet's normal
+      targetQuaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), upVector);
+      
+      // Get current rotation and smoothly interpolate
+      const currentRot = rigidBodyRef.current.rotation();
+      currentQuaternion.set(currentRot.x, currentRot.y, currentRot.z, currentRot.w);
+      currentQuaternion.slerp(targetQuaternion, 0.1);
+      
+      // Apply the smoothed rotation
+      rigidBodyRef.current.setRotation(currentQuaternion, true);
+    } else {
+      upVector.set(0, 1, 0); // Default up if no planets nearby
+    }
 
     // 4. Jetpack Thrust System
     // Get camera forward direction (mouse look direction)
@@ -103,12 +146,12 @@ export const Player: React.FC<PlayerProps> = ({ onPositionUpdate }) => {
       colliders={false} 
       mass={1} 
       position={[0, 12, 0]} 
-      enabledRotations={[false, false, false]} 
+      enabledRotations={[true, true, true]} 
       linearDamping={0.3}
       angularDamping={0.5}
     >
       <CapsuleCollider args={[0.5, 0.5]} />
-      <mesh>
+      <mesh visible={false}>
         <capsuleGeometry args={[0.5, 1, 4, 8]} />
         <meshStandardMaterial color="orange" />
       </mesh>

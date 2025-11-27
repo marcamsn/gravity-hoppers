@@ -1,5 +1,5 @@
 {
-  "name": "@mini-worlds/server",
+  "name": "@gravity-hoopers/server",
   "version": "1.0.0",
   "main": "build/index.js",
   "scripts": {

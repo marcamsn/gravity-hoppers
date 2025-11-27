@@ -1,5 +1,5 @@
 {
-  "name": "@mini-worlds/client",
+  "name": "@gravity-hoopers/client",
   "version": "1.0.0",
   "scripts": {
     "dev": "vite",
