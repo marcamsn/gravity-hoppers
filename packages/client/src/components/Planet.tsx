@@ -85,25 +85,34 @@ export const Planet: React.FC<PlanetProps> = ({ position = [0, 0, 0], radius = 1
     return { trees, rocks };
   }, [radius]);
 
-  // Create glow material for atmosphere effect
+  // Create glow material for atmosphere effect - soft gradient
   const glowMaterial = useMemo(() => {
     return new THREE.ShaderMaterial({
       uniforms: {
         glowColor: { value: new THREE.Color(palette.ground) },
+        viewVector: { value: new THREE.Vector3() },
       },
       vertexShader: `
         varying vec3 vNormal;
+        varying vec3 vPositionNormal;
         void main() {
           vNormal = normalize(normalMatrix * normal);
+          vPositionNormal = normalize((modelViewMatrix * vec4(position, 1.0)).xyz);
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
       fragmentShader: `
         uniform vec3 glowColor;
         varying vec3 vNormal;
+        varying vec3 vPositionNormal;
         void main() {
-          float intensity = pow(0.7 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
-          gl_FragColor = vec4(glowColor, intensity * 0.5);
+          // Fresnel effect for soft edge glow
+          float fresnel = 1.0 - abs(dot(vNormal, vPositionNormal));
+          // Smooth falloff with pow for softer gradient
+          float intensity = pow(fresnel, 3.0) * 0.6;
+          // Fade out towards edges smoothly
+          intensity *= smoothstep(0.0, 0.5, fresnel);
+          gl_FragColor = vec4(glowColor, intensity);
         }
       `,
       side: THREE.BackSide,
@@ -115,8 +124,8 @@ export const Planet: React.FC<PlanetProps> = ({ position = [0, 0, 0], radius = 1
 
   return (
     <group position={position}>
-        {/* Outer glow/atmosphere */}
-        <mesh scale={1.15} material={glowMaterial}>
+        {/* Outer glow/atmosphere - soft gradient */}
+        <mesh scale={1.25} material={glowMaterial}>
           <sphereGeometry args={[radius, 32, 32]} />
         </mesh>
 
