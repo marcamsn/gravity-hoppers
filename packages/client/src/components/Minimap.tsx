@@ -3,6 +3,7 @@ import { createPortal } from '@react-three/fiber';
 import { OrthographicCamera, useFBO } from '@react-three/drei';
 import * as THREE from 'three';
 import { usePlanetConfigs } from './PlanetSystem';
+import { getPlanetPalette } from './Planet';
 
 interface MinimapProps {
   playerPosition: THREE.Vector3;
@@ -142,29 +143,36 @@ export const Minimap: React.FC<MinimapProps> = ({ playerPosition, remotePlayers 
 // Simple HTML overlay minimap using CSS
 export const MinimapOverlay: React.FC<{
   playerPosition: THREE.Vector3;
-  playerRotation: number; // Y-axis rotation in radians
+  cameraForward: THREE.Vector3;
+  cameraUp: THREE.Vector3;
   remotePlayers: Array<{ x: number; y: number; z: number }>;
-}> = ({ playerPosition, playerRotation, remotePlayers }) => {
+}> = ({ playerPosition, cameraForward, cameraUp, remotePlayers }) => {
   const planets = usePlanetConfigs();
   const size = 180;
   const range = 800;
   const scale = size / (range * 2);
 
-  // Transform world coordinates to radar-relative (rotated by camera yaw)
-  const toRotatedMapCoords = (worldX: number, worldZ: number) => {
+  // Calculate camera right vector for 3D projection
+  const cameraRight = useMemo(() => {
+    return new THREE.Vector3().crossVectors(cameraForward, cameraUp).normalize();
+  }, [cameraForward, cameraUp]);
+
+  // Transform world coordinates to radar-relative (projected onto camera plane)
+  const toRotatedMapCoords = (worldX: number, worldY: number, worldZ: number) => {
     // Get position relative to player
     const dx = worldX - playerPosition.x;
+    const dy = worldY - playerPosition.y;
     const dz = worldZ - playerPosition.z;
 
-    // Rotate so "forward" points up on radar
-    const cos = Math.cos(-playerRotation);
-    const sin = Math.sin(-playerRotation);
-    const rotatedX = dx * cos - dz * sin;
-    const rotatedZ = dx * sin + dz * cos;
+    // Project onto camera's local coordinate system
+    // Right = X on radar, Forward = -Y on radar (up on screen)
+    const relativePos = new THREE.Vector3(dx, dy, dz);
+    const projectedX = relativePos.dot(cameraRight);
+    const projectedY = relativePos.dot(cameraForward); // Forward = up on radar
 
     return {
-      left: size / 2 + rotatedX * scale,
-      top: size / 2 + rotatedZ * scale, // Changed from minus to plus to flip Y axis
+      left: size / 2 + projectedX * scale,
+      top: size / 2 - projectedY * scale, // Negative because forward should be up
     };
   };
 
@@ -176,11 +184,11 @@ export const MinimapOverlay: React.FC<{
         right: 20,
         width: size,
         height: size,
-        background: 'radial-gradient(circle, #0a0a2a 0%, #050510 100%)',
-        border: '2px solid #334466',
+        background: 'radial-gradient(circle, rgba(255,220,240,0.9) 0%, rgba(200,220,255,0.85) 50%, rgba(230,200,255,0.8) 100%)',
+        border: '2px solid rgba(255,180,200,0.6)',
         borderRadius: '50%',
         overflow: 'hidden',
-        boxShadow: '0 0 20px rgba(0,100,200,0.3)',
+        boxShadow: '0 0 20px rgba(255,180,220,0.4), inset 0 0 30px rgba(255,255,255,0.3)',
       }}
     >
       {/* Grid lines */}
@@ -188,23 +196,24 @@ export const MinimapOverlay: React.FC<{
         style={{ position: 'absolute', width: '100%', height: '100%' }}
         viewBox={`0 0 ${size} ${size}`}
       >
-        <circle cx={size/2} cy={size/2} r={size/2 - 2} fill="none" stroke="#223344" strokeWidth="1" />
-        <circle cx={size/2} cy={size/2} r={size/3} fill="none" stroke="#1a2a3a" strokeWidth="1" />
-        <circle cx={size/2} cy={size/2} r={size/6} fill="none" stroke="#1a2a3a" strokeWidth="1" />
-        <line x1={size/2} y1={0} x2={size/2} y2={size} stroke="#1a2a3a" strokeWidth="1" />
-        <line x1={0} y1={size/2} x2={size} y2={size/2} stroke="#1a2a3a" strokeWidth="1" />
+        <circle cx={size/2} cy={size/2} r={size/2 - 2} fill="none" stroke="rgba(200,150,180,0.4)" strokeWidth="1" />
+        <circle cx={size/2} cy={size/2} r={size/3} fill="none" stroke="rgba(180,150,200,0.3)" strokeWidth="1" />
+        <circle cx={size/2} cy={size/2} r={size/6} fill="none" stroke="rgba(180,150,200,0.3)" strokeWidth="1" />
+        <line x1={size/2} y1={0} x2={size/2} y2={size} stroke="rgba(180,150,200,0.25)" strokeWidth="1" />
+        <line x1={0} y1={size/2} x2={size} y2={size/2} stroke="rgba(180,150,200,0.25)" strokeWidth="1" />
       </svg>
 
       {/* Planets */}
       {planets.map((planet, i) => {
-        const pos = toRotatedMapCoords(planet.position.x, planet.position.z);
+        const pos = toRotatedMapCoords(planet.position.x, planet.position.y, planet.position.z);
         const dotSize = Math.max(3, Math.min(12, planet.radius * 0.3));
-        const brightness = planet.radius < 10 ? '88' : planet.radius < 30 ? '66' : '44';
+        const palette = getPlanetPalette(planet.seed);
 
-        // Check if within radar range (relative to player)
+        // Check if within radar range (3D distance)
         const dx = planet.position.x - playerPosition.x;
+        const dy = planet.position.y - playerPosition.y;
         const dz = planet.position.z - playerPosition.z;
-        const dist = Math.sqrt(dx * dx + dz * dz);
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
         if (dist > range) return null;
 
         return (
@@ -217,8 +226,8 @@ export const MinimapOverlay: React.FC<{
               width: dotSize,
               height: dotSize,
               borderRadius: '50%',
-              background: `#${brightness}cc${brightness}`,
-              boxShadow: `0 0 ${dotSize/2}px #${brightness}ff${brightness}`,
+              background: palette.ground,
+              boxShadow: `0 0 ${dotSize/2}px ${palette.ground}`,
             }}
           />
         );
@@ -227,17 +236,21 @@ export const MinimapOverlay: React.FC<{
       {/* Remote players */}
       {remotePlayers.map((player, i) => {
         const dx = player.x - playerPosition.x;
+        const dy = player.y - playerPosition.y;
         const dz = player.z - playerPosition.z;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        const isOffScreen = dist > range * 0.9;
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+        const pos = toRotatedMapCoords(player.x, player.y, player.z);
+
+        // Check if outside radar bounds
+        const isOffScreen = pos.left < 0 || pos.left > size || pos.top < 0 || pos.top > size || dist > range * 0.9;
 
         if (isOffScreen) {
-          // Show as arrow on edge pointing to player (rotated coordinates)
-          const cos = Math.cos(-playerRotation);
-          const sin = Math.sin(-playerRotation);
-          const rotatedX = dx * cos - dz * sin;
-          const rotatedZ = dx * sin + dz * cos;
-          const arrowAngle = Math.atan2(rotatedZ, rotatedX);
+          // Show as arrow on edge pointing to player (using projected coordinates)
+          const relativePos = new THREE.Vector3(dx, dy, dz);
+          const projectedX = relativePos.dot(cameraRight);
+          const projectedY = relativePos.dot(cameraForward);
+          const arrowAngle = Math.atan2(projectedX, projectedY);
           const edgeRadius = size / 2 - 12;
 
           return (
@@ -245,14 +258,14 @@ export const MinimapOverlay: React.FC<{
               key={`remote-${i}`}
               style={{
                 position: 'absolute',
-                left: size / 2 + Math.cos(arrowAngle) * edgeRadius - 6,
-                top: size / 2 + Math.sin(arrowAngle) * edgeRadius - 6,
+                left: size / 2 + Math.sin(arrowAngle) * edgeRadius - 6,
+                top: size / 2 - Math.cos(arrowAngle) * edgeRadius - 6,
                 width: 12,
                 height: 12,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                transform: `rotate(${arrowAngle * (180 / Math.PI) + 90}deg)`,
+                transform: `rotate(${arrowAngle * (180 / Math.PI)}deg)`,
               }}
             >
               <div
@@ -270,7 +283,6 @@ export const MinimapOverlay: React.FC<{
         }
 
         // Remote player as triangle
-        const pos = toRotatedMapCoords(player.x, player.z);
         return (
           <div
             key={`remote-${i}`}
@@ -306,10 +318,10 @@ export const MinimapOverlay: React.FC<{
         <svg width="16" height="16" viewBox="0 0 16 16">
           <path
             d="M8 0 L16 16 L0 16 Z"
-            fill="#00ffff"
+            fill="#ff69b4"
             stroke="#ffffff"
             strokeWidth="1"
-            filter="drop-shadow(0 0 4px #00ffff)"
+            filter="drop-shadow(0 0 4px #ff69b4)"
           />
         </svg>
       </div>
@@ -321,9 +333,10 @@ export const MinimapOverlay: React.FC<{
           bottom: 5,
           left: '50%',
           transform: 'translateX(-50%)',
-          color: '#667788',
+          color: 'rgba(180,120,160,0.8)',
           fontSize: 10,
           fontFamily: 'monospace',
+          textShadow: '0 0 4px rgba(255,255,255,0.5)',
         }}
       >
         RADAR

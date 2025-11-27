@@ -42,7 +42,7 @@ export const RemotePlayer: React.FC<RemotePlayerProps> = ({ player }) => {
   const material = useMemo(() => {
     return new THREE.ShaderMaterial({
       uniforms: {
-        color: { value: new THREE.Color('#ff6600') },
+        color: { value: new THREE.Color('#ffcc00') },
       },
       vertexShader: `
         attribute float alpha;
@@ -124,7 +124,7 @@ export const RemotePlayer: React.FC<RemotePlayerProps> = ({ player }) => {
     <>
       <mesh ref={meshRef}>
         <capsuleGeometry args={[0.5, 1, 4, 8]} />
-        <meshStandardMaterial color="cyan" />
+        <meshStandardMaterial color="#ffcc00" />
       </mesh>
       <points ref={pointsRef} geometry={geometry} material={material} frustumCulled={false} />
     </>

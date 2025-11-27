@@ -9,8 +9,8 @@ interface SpeedLinesProps {
 const LINE_COUNT = 150;
 const MIN_LINE_LENGTH = 0.3;
 const MAX_LINE_LENGTH = 12;
-const SPREAD_MIN = 1.5;
-const SPREAD_MAX = 5;
+const SPREAD_MIN = 2.5;  // Some space from center
+const SPREAD_MAX = 6;    // Not too far to lose effect
 const ANIMATION_SPEED = 80;
 
 export const SpeedLines: React.FC<SpeedLinesProps> = ({ intensity }) => {
@@ -56,8 +56,8 @@ export const SpeedLines: React.FC<SpeedLinesProps> = ({ intensity }) => {
     // Line length grows dramatically with thrust - use exponential curve for clear difference
     const lineLength = MIN_LINE_LENGTH + (MAX_LINE_LENGTH - MIN_LINE_LENGTH) * intensity * intensity;
 
-    // Lines converge toward center at higher thrust
-    const spreadMultiplier = 1 - intensity * 0.4;
+    // Lines stay on edges - no convergence to keep center completely clear
+    const spreadMultiplier = 1;
 
     for (let i = 0; i < LINE_COUNT; i++) {
       const idx = i * 6;

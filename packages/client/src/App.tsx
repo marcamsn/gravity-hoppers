@@ -1,12 +1,14 @@
 import { useState, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { Stars, PointerLockControls, Environment } from '@react-three/drei'
+import { Stars, PointerLockControls } from '@react-three/drei'
 import { Physics } from '@react-three/rapier'
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing'
 import { PlanetSystem } from './components/PlanetSystem'
 import { Player } from './components/Player'
 import { NetworkManager } from './components/NetworkManager'
 import { MinimapOverlay } from './components/Minimap'
+import { OffscreenIndicators } from './components/OffscreenIndicators'
+import { SkyGradient } from './components/SkyGradient'
 import * as Colyseus from 'colyseus.js'
 import * as THREE from 'three'
 
@@ -14,7 +16,8 @@ function App() {
   const roomRef = useRef<Colyseus.Room | null>(null);
   const [playerCount, setPlayerCount] = useState(0);
   const [playerPosition, setPlayerPosition] = useState(() => new THREE.Vector3());
-  const [playerRotation, setPlayerRotation] = useState(0);
+  const [cameraForward, setCameraForward] = useState(() => new THREE.Vector3(0, 0, -1));
+  const [cameraUp, setCameraUp] = useState(() => new THREE.Vector3(0, 1, 0));
   const [remotePlayers, setRemotePlayers] = useState<Array<{ x: number; y: number; z: number }>>([]);
 
   const handleRoomJoined = (room: Colyseus.Room) => {
@@ -27,8 +30,9 @@ function App() {
     }
     // Update local position for minimap (create new Vector3 to trigger re-render)
     setPlayerPosition(new THREE.Vector3(data.x, data.y, data.z));
-    // Update rotation for minimap direction indicator
-    setPlayerRotation(data.cameraYaw);
+    // Update camera vectors for 3D radar
+    setCameraForward(new THREE.Vector3(data.cameraForward.x, data.cameraForward.y, data.cameraForward.z));
+    setCameraUp(new THREE.Vector3(data.cameraUp.x, data.cameraUp.y, data.cameraUp.z));
   };
 
   const handlePlayerCountChange = (count: number) => {
@@ -41,11 +45,12 @@ function App() {
 
   return (
     <>
-      <Canvas camera={{ fov: 60 }}>
-        <color attach="background" args={['#000020']} />
-        <ambientLight intensity={0.2} />
-        <pointLight position={[10, 10, 10]} intensity={1.5} />
-        <Environment preset="sunset" />
+      <Canvas camera={{ fov: 60, near: 0.1, far: 10000 }}>
+        <SkyGradient />
+        <ambientLight intensity={2.0} />
+        <directionalLight position={[50, 50, 50]} intensity={1.5} color="#ffffff" />
+        <directionalLight position={[-50, -50, -50]} intensity={0.8} color="#ffe0f0" />
+        <hemisphereLight args={['#ffffff', '#ffe0ff', 1.2]} />
 
         <Physics gravity={[0, 0, 0]}> {/* Disable default gravity */}
           <PlanetSystem />
@@ -58,12 +63,12 @@ function App() {
           onRemotePlayersUpdate={handleRemotePlayersUpdate}
         />
 
-        <Stars radius={200} depth={500} count={5000} factor={6} saturation={0} fade speed={0.5} />
+        <Stars radius={2000} depth={2000} count={5000} factor={4} saturation={0.5} fade speed={0.5} />
         <PointerLockControls />
 
         <EffectComposer>
-            <Bloom luminanceThreshold={0.5} luminanceSmoothing={0.9} height={300} intensity={0.5} />
-            <Vignette eskil={false} offset={0.1} darkness={1.1} />
+            <Bloom luminanceThreshold={0.3} luminanceSmoothing={0.9} height={300} intensity={0.8} />
+            <Vignette eskil={false} offset={0.1} darkness={0.5} />
         </EffectComposer>
       </Canvas>
 
@@ -80,7 +85,8 @@ function App() {
         <div>Players Online: {playerCount}</div>
       </div>
 
-      <MinimapOverlay playerPosition={playerPosition} playerRotation={playerRotation} remotePlayers={remotePlayers} />
+      <MinimapOverlay playerPosition={playerPosition} cameraForward={cameraForward} cameraUp={cameraUp} remotePlayers={remotePlayers} />
+      <OffscreenIndicators playerPosition={playerPosition} cameraForward={cameraForward} cameraUp={cameraUp} remotePlayers={remotePlayers} />
     </>
   )
 }

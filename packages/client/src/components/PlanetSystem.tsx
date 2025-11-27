@@ -7,6 +7,7 @@ interface PlanetConfig {
   position: [number, number, number];
   radius: number;
   mass: number;
+  seed: number;
 }
 
 // Shared configuration for planet generation
@@ -57,6 +58,7 @@ export const PlanetSystem: React.FC = () => {
           position: [x, y, z],
           radius,
           mass,
+          seed: startId + i,
         });
       }
     };
@@ -76,20 +78,22 @@ export const PlanetSystem: React.FC = () => {
           key={planet.id}
           position={planet.position}
           radius={planet.radius}
+          seed={planet.seed}
         />
       ))}
     </>
   );
 };
 
-// Export planet configurations for use in Player gravity calculations
-export const usePlanetConfigs = (): Array<{ position: THREE.Vector3; radius: number; mass: number }> => {
+// Export planet configurations for use in Player gravity calculations and minimap
+export const usePlanetConfigs = (): Array<{ position: THREE.Vector3; radius: number; mass: number; seed: number }> => {
   return useMemo(() => {
-    const planetConfigs: Array<{ position: THREE.Vector3; radius: number; mass: number }> = [];
+    const planetConfigs: Array<{ position: THREE.Vector3; radius: number; mass: number; seed: number }> = [];
     const random = createRandom(PLANET_CONFIG.seed);
 
     const generatePlanets = (
-      config: { count: number; minDist: number; maxDist: number; minRadius: number; maxRadius: number }
+      config: { count: number; minDist: number; maxDist: number; minRadius: number; maxRadius: number },
+      startId: number
     ) => {
       for (let i = 0; i < config.count; i++) {
         const distance = config.minDist + random() * (config.maxDist - config.minDist);
@@ -107,14 +111,15 @@ export const usePlanetConfigs = (): Array<{ position: THREE.Vector3; radius: num
           position: new THREE.Vector3(x, y, z),
           radius,
           mass,
+          seed: startId + i,
         });
       }
     };
 
-    generatePlanets(PLANET_CONFIG.small);
-    generatePlanets(PLANET_CONFIG.medium);
-    generatePlanets(PLANET_CONFIG.large);
-    generatePlanets(PLANET_CONFIG.giant);
+    generatePlanets(PLANET_CONFIG.small, 0);
+    generatePlanets(PLANET_CONFIG.medium, 100);
+    generatePlanets(PLANET_CONFIG.large, 200);
+    generatePlanets(PLANET_CONFIG.giant, 300);
 
     return planetConfigs;
   }, []);

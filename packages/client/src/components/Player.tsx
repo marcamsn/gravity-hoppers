@@ -14,7 +14,12 @@ const THRUST_RAMP_SPEED = 2.0;
 type PlanetConfig = { position: THREE.Vector3; radius: number; mass: number };
 
 interface PlayerProps {
-    onPositionUpdate?: (data: { x: number, y: number, z: number, qx: number, qy: number, qz: number, qw: number, cameraYaw: number }) => void;
+    onPositionUpdate?: (data: {
+        x: number, y: number, z: number,
+        qx: number, qy: number, qz: number, qw: number,
+        cameraForward: { x: number, y: number, z: number },
+        cameraUp: { x: number, y: number, z: number }
+    }) => void;
 }
 
 export const Player: React.FC<PlayerProps> = ({ onPositionUpdate }) => {
@@ -133,12 +138,12 @@ export const Player: React.FC<PlayerProps> = ({ onPositionUpdate }) => {
     if (onPositionUpdate && rigidBodyRef.current) {
         const t = rigidBodyRef.current.translation();
         const r = rigidBodyRef.current.rotation();
-        // Get camera yaw (Y-axis rotation) for minimap direction indicator
-        const cameraYaw = Math.atan2(thrustDirection.x, thrustDirection.z);
         onPositionUpdate({
             x: t.x, y: t.y, z: t.z,
             qx: r.x, qy: r.y, qz: r.z, qw: r.w,
-            cameraYaw
+            // Pass full camera direction and up vector for 3D radar
+            cameraForward: { x: thrustDirection.x, y: thrustDirection.y, z: thrustDirection.z },
+            cameraUp: { x: upVector.x, y: upVector.y, z: upVector.z }
         });
     }
 
