@@ -1,0 +1,13 @@
+{
+  "name": "mini-worlds",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:client": "npm run dev --workspace=@mini-worlds/client",
+    "dev:server": "npm run dev --workspace=@mini-worlds/server",
+    "build": "npm run build --workspaces"
+  }
+}
